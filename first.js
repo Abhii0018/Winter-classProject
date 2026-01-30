@@ -59,3 +59,18 @@ fetchProductData('https://dummyjson.com/products')
     .catch(error => {
         sel.innerHTML = '<p>Failed to load products. Please try again later.</p>';
     });
+
+    // let searchButton = document.getElementById('search');
+    // let searchBar = document.getElementById('searchbar');
+    
+    // searchButton.addEventListener('click', function() {
+    //     let query = searchBar.value.toLowerCase();     
+    //     fetchProductData(`https://dummyjson.com/products/search?q=${query}`)
+    //         .then(data => {
+    //             resolveData(data);
+    //         })
+    //         .catch(error => {
+    //             sel.innerHTML = '<p>Failed to load products. Please try again later.</p>';
+    //         });
+    // });             
+
