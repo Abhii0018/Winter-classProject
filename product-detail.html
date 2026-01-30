@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Product Detail</title>
+    <style>
+        body{font-family:Arial,Helvetica,sans-serif;margin:20px}
+        .container{max-width:900px;margin:0 auto}
+        .back{margin-bottom:16px;display:inline-block}
+        .product{display:flex;gap:20px;align-items:flex-start}
+        .product img{max-width:360px;width:100%;border-radius:8px}
+        .meta{flex:1}
+        .price{font-size:20px;color:#0a7;font-weight:700;margin:8px 0}
+        .description{margin-top:12px;line-height:1.5}
+        .notfound{color:#c00}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a class="back" href="index.html">← Back to products</a>
+        <div id="content">
+            <p>Loading product...</p>
+        </div>
+    </div>
+
+    <script>
+        function q(name){
+            return new URLSearchParams(window.location.search).get(name);
+        }
+
+        const id = q('id');
+        const content = document.getElementById('content');
+
+        if (!id) {
+            content.innerHTML = '<p class="notfound">No product id provided in the URL.</p>';
+        } else {
+            fetch(`https://dummyjson.com/products/${encodeURIComponent(id)}`)
+                .then(r => {
+                    if (!r.ok) throw new Error('Product not found');
+                    return r.json();
+                })
+                .then(product => render(product))
+                .catch(err => {
+                    content.innerHTML = `<p class="notfound">Error loading product: ${err.message}</p>`;
+                });
+        }
+
+        function render(product){
+            content.innerHTML = `
+                <div class="product">
+                    <img src="${product.thumbnail || ''}" alt="${(product.title||'')}" onerror="this.src='https://via.placeholder.com/360x260?text=No+Image'">
+                    <div class="meta">
+                        <h1>${product.title || ''}</h1>
+                        <div class="price">$${product.price}</div>
+                        <div class="rating">⭐ ${product.rating} • Stock: ${product.stock}</div>
+                        <div class="description">${product.description || 'No description available.'}</div>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

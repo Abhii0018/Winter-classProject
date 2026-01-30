@@ -3,21 +3,194 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="first.js" defer></script>
+    <title>Product Store</title>
+    <style>
+        .product-container{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 40px;
+            justify-content: center;
+            padding: 20px;
+            border:2px solid #ccc;
+        }
+        .product-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: 300px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background-color: #fff;
+            padding: 20px;
+        }
+        #searchHistory{
+            margin:20px;
+            padding:10px;
+            border:1px solid #ccc;
+        }
+        .suggestion-item{
+            padding:5px;
+            border-bottom:1px solid #eee;
+            cursor:pointer;
+        }
+        .suggestion-item:hover{
+            background-color:#f0f0f0;
+        }
+        /* Modal styles for product description */
+        .modal{
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content{
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+            position: relative;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+        }
+        .modal-image{max-width:100%;height:auto;border-radius:6px;margin-bottom:12px}
+        #modalClose{position:absolute;right:8px;top:6px;border:none;background:transparent;font-size:22px;cursor:pointer}
+    </style>
 </head>
 <body>
-    <h1>Product Store</h1>
-    
-    <input type="text" id="searchbar" placeholder="Search Product">
-    <button id="search">Search</button>
+    <h1> Product Store</h1>
+    <input type="text" id="searchInput" placeholder="Search products...">
+    <button id="searchBtn">Search</button>
+    <button onclick="window.location.href='history.html'">View Search History</button>
     <div id="suggestions"></div>
-    
-    <div id="productStore">
-
+    <div class="product-container" id="productContainer"></div>
+    <div id="searchHistory"></div>
+    <!-- Product description modal -->
+    <div id="productModal" class="modal" role="dialog" aria-modal="true">
+        <div class="modal-content">
+            <button id="modalClose" aria-label="Close">×</button>
+            <img src="" alt="" class="modal-image">
+            <h2 class="modal-title"></h2>
+            <p class="modal-desc"></p>
+        </div>
     </div>
-
     
+
+    <script>
+        fetch('https://dummyjson.com/products')
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                displayProducts(data.products);
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+            });
+
+        function displayProducts(products) {
+            const container = document.getElementById('productContainer');
+            
+            products.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'product-card';
+                
+                productCard.innerHTML = `
+                    
+                    <img src="${product.thumbnail}" alt="${product.title}" class="product-image" onerror="this.src='https://via.placeholder.com/300x250?text=No+Image'">
+                    <div class="product-info">
+                        
+                        <h2 class="product-title">${product.title}</h2>
+                        <div class="product-details">
+                            <span class="product-price">$${product.price}</span>
+                            <span class="product-rating">⭐ ${product.rating}</span>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(productCard);
+
+                // Add click listener on the image to open description modal
+                const img = productCard.querySelector('.product-image');
+                if (img) {
+                    img.style.cursor = 'pointer';
+                    img.addEventListener('click', () => {
+                        window.location.href = `product-detail.html?id=${product.id}`;
+                    });
+                }
+            });
+        }
+
+        // Modal helper functions
+        function showProductModal(product){
+            const modal = document.getElementById('productModal');
+            modal.querySelector('.modal-image').src = product.thumbnail || '';
+            modal.querySelector('.modal-image').alt = product.title || '';
+            modal.querySelector('.modal-title').textContent = product.title || '';
+            modal.querySelector('.modal-desc').textContent = product.description || 'No description available.';
+            modal.style.display = 'flex';
+        }
+
+        function closeProductModal(){
+            const modal = document.getElementById('productModal');
+            modal.style.display = 'none';
+        }
+
+        // Close modal when clicking close button or overlay
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('productModal');
+            if (!modal) return;
+            if (e.target.id === 'modalClose') return closeProductModal();
+            if (e.target === modal) return closeProductModal();
+        });
+        const searchBtn = document.getElementById('searchBtn');
+        const searchInput = document.getElementById('searchInput');
+
+        searchBtn.addEventListener('click', () => {
+            const query = searchInput.value.trim();//
+            if (!query) return;// Ignore empty searches
+            console.log('Searching for:', query);
+            //suggestion: store search history in localStorage
+            let history=JSON.parse(localStorage.getItem('searchHistory')) || [];
+            if(!history.find(item=>item.query.toLowerCase()===query.toLowerCase())){
+                history.push({
+                    query:query,
+                    time:Date.now()
+                });
+                localStorage.setItem('searchHistory',JSON.stringify(history));
+            }
+            
+            window.location.href = `search.html?query=${encodeURIComponent(query)}`;//encodeURIComponent() encodes special characters in the query string
+            searchInput.value = '';
+        });
+        const suggestionBox=document.getElementById('suggestions');
+        searchInput.addEventListener('input',()=>{
+            console.log("Suggestion working...");
+            const text=searchInput.value.toLowerCase();
+            const history=JSON.parse(localStorage.getItem('searchHistory')) || [];
+
+            //filter based on query field
+            const matches=history.filter(item=>item.query.toLowerCase().includes(text));
+
+            //clear previous suggestions
+            suggestionBox.innerHTML='';
+            //show suggestions
+            matches.forEach(item=>{
+                const div=document.createElement('div');
+                div.className='suggestion-item';
+                div.textContent=item.query;
+                div.addEventListener('click',()=>{
+                    searchInput.value=item.query;
+                    suggestionBox.innerHTML='';
+                });
+                suggestionBox.appendChild(div);
+            });
+        });
+    </script>
 </body>
 </html>

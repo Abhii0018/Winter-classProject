@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        
+
+    </style>
+</head>
+<body>
+    <h1>Your Search History</h1>
+    <button id="clear" onclick="clearHistory()">Clear History</button>
+    <div id="historyContainer"></div>
+</body>
+<script>
+    let history=JSON.parse(localStorage.getItem('searchHistory')) || [];
+    const container=document.getElementById('historyContainer');
+    container.style.margin="20px";
+    history.sort((a,b)=>b.time - a.time); //most recent first
+    history.forEach(item=>{
+        const div=document.createElement('div');
+        div.style.padding="10px";
+        div.style.borderBottom="1px solid #ccc";
+        div.style.cursor="pointer";
+        div.innerHTML="<b>" + item.query + "</b><br> (" + new Date(item.time).toLocaleString() +")";
+        div.onclick=()=>{
+            window.location.href=`search.html?query=${encodeURIComponent(item.query)}`;
+        };
+        container.appendChild(div);
+    });
+    document.body.appendChild(container);
+    //clear history functionality
+    function clearHistory() {
+        localStorage.removeItem('searchHistory');
+        container.innerHTML="<p>History cleared.</p>";
+    }
+</script>
+</html>
