@@ -29,10 +29,23 @@
             padding:10px;
             border:1px solid #ccc;
         }
+        #suggestions{
+            position:absolute;
+            background:#fff;
+            border:1px solid #ddd;
+            border-top:none;
+            max-width:300px;
+            z-index:100;
+            display:none;
+        }
+        #suggestions.active{
+            display:block;
+        }
         .suggestion-item{
-            padding:5px;
+            padding:8px 12px;
             border-bottom:1px solid #eee;
             cursor:pointer;
+            background:#fff;
         }
         .suggestion-item:hover{
             background-color:#f0f0f0;
@@ -70,41 +83,55 @@
     <button onclick="window.location.href='history.html'">View Search History</button>
     <div id="suggestions"></div>
     <div class="product-container" id="productContainer"></div>
+    <div id="pagination" style="text-align:center;padding:12px"></div>
     <div id="searchHistory"></div>
-    <!-- Product description modal -->
-    <div id="productModal" class="modal" role="dialog" aria-modal="true">
-        <div class="modal-content">
-            <button id="modalClose" aria-label="Close">×</button>
-            <img src="" alt="" class="modal-image">
-            <h2 class="modal-title"></h2>
-            <p class="modal-desc"></p>
-        </div>
-    </div>
     
 
     <script>
-        fetch('https://dummyjson.com/products')
-            .then(response => response.json())
-            .then(data => {
-                console.log(data);
-                displayProducts(data.products);
-            })
-            .catch(error => {
-                console.error('Error fetching data:', error);
-            });
+        // Pagination settings
+        const FIRST_PAGE_SIZE = 7;
+        const PAGE_SIZE = 12; // subsequent pages
+        const params = new URLSearchParams(window.location.search);
+        let currentPage = parseInt(params.get('page')) || 1;
+
+        function loadProducts(page = 1){
+            currentPage = Math.max(1, parseInt(page) || 1);
+            let limit, skip;
+            if (currentPage === 1) {
+                limit = FIRST_PAGE_SIZE;
+                skip = 0;
+            } else {
+                limit = PAGE_SIZE;
+                skip = FIRST_PAGE_SIZE + (currentPage - 2) * PAGE_SIZE;
+            }
+
+            fetch(`https://dummyjson.com/products?limit=${limit}&skip=${skip}`)
+                .then(response => response.json())
+                .then(data => {
+                    displayProducts(data.products);
+                    createPagination(data.total, FIRST_PAGE_SIZE, PAGE_SIZE, currentPage);
+                })
+                .catch(error => console.error('Error fetching data:', error));
+        }
+
+        // initialize
+        loadProducts(currentPage);
 
         function displayProducts(products) {
             const container = document.getElementById('productContainer');
-            
+            container.innerHTML = '';
+            if (!products || products.length === 0) {
+                container.innerHTML = '<p>No products found.</p>';
+                return;
+            }
+
             products.forEach(product => {
                 const productCard = document.createElement('div');
                 productCard.className = 'product-card';
-                
+
                 productCard.innerHTML = `
-                    
                     <img src="${product.thumbnail}" alt="${product.title}" class="product-image" onerror="this.src='https://via.placeholder.com/300x250?text=No+Image'">
                     <div class="product-info">
-                        
                         <h2 class="product-title">${product.title}</h2>
                         <div class="product-details">
                             <span class="product-price">$${product.price}</span>
@@ -112,10 +139,9 @@
                         </div>
                     </div>
                 `;
-                
+
                 container.appendChild(productCard);
 
-                // Add click listener on the image to open description modal
                 const img = productCard.querySelector('.product-image');
                 if (img) {
                     img.style.cursor = 'pointer';
@@ -126,31 +152,55 @@
             });
         }
 
-        // Modal helper functions
-        function showProductModal(product){
-            const modal = document.getElementById('productModal');
-            modal.querySelector('.modal-image').src = product.thumbnail || '';
-            modal.querySelector('.modal-image').alt = product.title || '';
-            modal.querySelector('.modal-title').textContent = product.title || '';
-            modal.querySelector('.modal-desc').textContent = product.description || 'No description available.';
-            modal.style.display = 'flex';
+        function createPagination(total, firstSize, pageSize, page){
+            const pager = document.getElementById('pagination');
+            pager.innerHTML = '';
+
+            let totalPages = 1;
+            if (total <= firstSize) {
+                totalPages = 1;
+            } else {
+                const remaining = total - firstSize;
+                const pagesAfter = Math.ceil(remaining / pageSize);
+                totalPages = 1 + pagesAfter;
+            }
+
+            function setPage(p){
+                const url = new URL(window.location);
+                url.searchParams.set('page', p);
+                history.pushState({}, '', url);
+                loadProducts(p);
+            }
+
+            const prev = document.createElement('button');
+            prev.textContent = 'Prev';
+            prev.disabled = page <= 1;
+            prev.addEventListener('click', () => setPage(page - 1));
+            pager.appendChild(prev);
+
+            const maxButtons = 7;
+            let start = Math.max(1, page - Math.floor(maxButtons/2));
+            let end = Math.min(totalPages, start + maxButtons - 1);
+            if (end - start < maxButtons - 1) start = Math.max(1, end - maxButtons + 1);
+
+            for (let i = start; i <= end; i++){
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                btn.disabled = i === page;
+                btn.style.margin = '0 4px';
+                btn.addEventListener('click', () => setPage(i));
+                pager.appendChild(btn);
+            }
+
+            const next = document.createElement('button');
+            next.textContent = 'Next';
+            next.disabled = page >= totalPages;
+            next.addEventListener('click', () => setPage(page + 1));
+            pager.appendChild(next);
         }
 
-        function closeProductModal(){
-            const modal = document.getElementById('productModal');
-            modal.style.display = 'none';
-        }
-
-        // Close modal when clicking close button or overlay
-        document.addEventListener('click', (e) => {
-            const modal = document.getElementById('productModal');
-            if (!modal) return;
-            if (e.target.id === 'modalClose') return closeProductModal();
-            if (e.target === modal) return closeProductModal();
-        });
         const searchBtn = document.getElementById('searchBtn');
         const searchInput = document.getElementById('searchInput');
-
         searchBtn.addEventListener('click', () => {
             const query = searchInput.value.trim();//
             if (!query) return;// Ignore empty searches
@@ -179,17 +229,31 @@
 
             //clear previous suggestions
             suggestionBox.innerHTML='';
-            //show suggestions
-            matches.forEach(item=>{
-                const div=document.createElement('div');
-                div.className='suggestion-item';
-                div.textContent=item.query;
-                div.addEventListener('click',()=>{
-                    searchInput.value=item.query;
-                    suggestionBox.innerHTML='';
+            
+            //show suggestions only if there are matches and input is not empty
+            if(matches.length > 0 && text.trim() !== ''){
+                suggestionBox.classList.add('active');
+                matches.forEach(item=>{
+                    const div=document.createElement('div');
+                    div.className='suggestion-item';
+                    div.textContent=item.query;
+                    div.addEventListener('click',()=>{
+                        searchInput.value=item.query;
+                        suggestionBox.innerHTML='';
+                        suggestionBox.classList.remove('active');
+                    });
+                    suggestionBox.appendChild(div);
                 });
-                suggestionBox.appendChild(div);
-            });
+            } else {
+                suggestionBox.classList.remove('active');
+            }
+        });
+        
+        // Close suggestions when clicking outside
+        document.addEventListener('click',(e)=>{
+            if(e.target !== searchInput){
+                suggestionBox.classList.remove('active');
+            }
         });
     </script>
 </body>
